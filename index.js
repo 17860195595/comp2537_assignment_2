@@ -29,6 +29,33 @@ app.use(session({
   })
 }));
 
+function requireSession(opts = {}) {
+  const { redirectTo } = { redirectTo: "/login", ...opts };
+  return (req, res, next) => {
+    if (!req.session.authenticated) {
+      return res.redirect(redirectTo);
+    }
+    next();
+  };
+}
+
+function requireAdmin(opts = {}) {
+  const { msg, link } = {
+    msg: "You are not authorized to view this page.",
+    link: "/",
+    ...opts
+  };
+  return (req, res, next) => {
+    if (!req.session.authenticated) {
+      return res.redirect("/login");
+    }
+    if (req.session.user_type !== "admin") {
+      return res.status(403).render("error", { msg, link });
+    }
+    next();
+  };
+}
+
 app.use(express.static("public"));
 app.set("view engine", "ejs");
 
@@ -111,11 +138,7 @@ app.post("/loginSubmit", async (req, res) => {
     res.redirect("/members");
 });
  
-app.get("/members", (req, res) => {
-    if (!req.session.authenticated) {
-        return res.redirect("/");
-    }
-
+app.get("/members", requireSession({ redirectTo: "/" }), (req, res) => {
     const images = ["image1.gif", "image2.webp", "image3.gif"];
     res.render("members", { name: req.session.name, images });
 });
@@ -125,29 +148,15 @@ app.get("/logout", (req, res) => {
     res.render("logout");
 });
  
-app.get("/admin", async (req, res) => {
-    if (!req.session.authenticated) {
-        return res.redirect("/login");
-    }
-
-    if (req.session.user_type !== "admin") {
-        return res.status(403).render("error", { 
-            msg: "You are not authorized to view this page.", 
-            link: "/" 
-        });
-    }
-
+app.get("/admin", requireAdmin(), async (req, res) => {
     const users = await userCollection.find().toArray();
     res.render("users", { users });
 });
-app.get("/promote/:id", async (req, res) => {
-    if (!req.session.authenticated || req.session.user_type !== "admin") {
-        return res.status(403).render("error", {    
-            msg: "You are not authorized to perform this action.",
-            link: "/admin"
-        });
-    }
 
+app.get("/promote/:id", requireAdmin({
+    msg: "You are not authorized to perform this action.",
+    link: "/admin"
+}), async (req, res) => {
     const id = req.params.id;
     const user = await userCollection.findOne({ _id: new ObjectId(id) });
     if (!user) {
@@ -160,14 +169,10 @@ app.get("/promote/:id", async (req, res) => {
     res.redirect("/admin");
 });
 
-app.get("/demote/:id", async (req, res) => {
-    if (!req.session.authenticated || req.session.user_type !== "admin") {
-        return res.status(403).render("error", {    
-            msg: "You are not authorized to perform this action.",
-            link: "/admin"
-        });
-    }   
-
+app.get("/demote/:id", requireAdmin({
+    msg: "You are not authorized to perform this action.",
+    link: "/admin"
+}), async (req, res) => {
     const id = req.params.id;
     const user = await userCollection.findOne({ _id: new ObjectId(id) });
     if (!user) {
