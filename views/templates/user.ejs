@@ -1,0 +1,17 @@
+<li class="list-group-item d-flex justify-content-between align-items-center">
+    <div>
+        <span>
+            <%= user.name %>
+        </span>
+        <%if (user.user_type === "admin") {%>
+            <span class="badge text-bg-primary">Admin</span>
+        <% } else { %>
+            <span class="badge text-bg-secondary">User</span>
+        <% } %>
+    </div>
+
+    <div>
+        <a href="/promote/<%= user._id %>" class="btn btn-sm btn-success me-2">Promote to Admin</a>
+        <a href="/demote/<%= user._id %>" class="btn btn-sm btn-danger">Demote to User</a>
+    </div>
+</li>
